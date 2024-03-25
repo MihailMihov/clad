@@ -1,6 +1,5 @@
 // RUN: %cladclang %s -I%S/../../include -oOverloads.out 2>&1 | FileCheck %s
 // RUN: ./Overloads.out | FileCheck -check-prefix=CHECK-EXEC %s
-// XFAIL: asserts
 //CHECK-NOT: {{.*error|warning|note:.*}}
 // XFAIL: target={{i586.*}}
 
