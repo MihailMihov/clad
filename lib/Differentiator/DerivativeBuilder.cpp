@@ -337,7 +337,8 @@ static void registerDerivative(FunctionDecl* derivedFD, Sema& semaRef) {
     if (const CXXMethodDecl* MD = dyn_cast<CXXMethodDecl>(FD)) {
       const CXXRecordDecl* CD = MD->getParent();
       if (clad::utils::hasNonDifferentiableAttribute(CD)) {
-        diag(DiagnosticsEngine::Error, MD->getLocation(),
+        diag(DiagnosticsEngine::Error,
+             request.CallContext ? request.CallContext->getBeginLoc() : noLoc,
              "attempted differentiation of method '%0' in class '%1', which is "
              "marked as "
              "non-differentiable",

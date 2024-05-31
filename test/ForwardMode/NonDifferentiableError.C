@@ -12,7 +12,7 @@ public:
   SimpleFunctions2(double p_x, double p_y) noexcept : x(p_x), y(p_y) {}
   double x;
   double y;
-  double mem_fn(double i, double j) { return (x + y) * i + i * j * j; } // expected-error {{attempted differentiation of method 'mem_fn' in class 'SimpleFunctions2', which is marked as non-differentiable}}
+  double mem_fn(double i, double j) { return (x + y) * i + i * j * j; }
 };
 
 non_differentiable double fn_s2_mem_fn(double i, double j) {
@@ -37,6 +37,6 @@ non_differentiable double fn_s2_mem_fn(double i, double j) {
 
 int main() {
   INIT_EXPR(SimpleFunctions2);
-  TEST_CLASS(SimpleFunctions2, mem_fn, 3, 5);
+  TEST_CLASS(SimpleFunctions2, mem_fn, 3, 5); // expected-error {{attempted differentiation of method 'mem_fn' in class 'SimpleFunctions2', which is marked as non-differentiable}}
   TEST_FUNC(fn_s2_mem_fn, 3, 5);  // expected-error {{attempted differentiation of function 'fn_s2_mem_fn', which is marked as non-differentiable}}
 }
