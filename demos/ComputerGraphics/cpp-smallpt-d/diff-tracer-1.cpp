@@ -26,12 +26,15 @@
 //#include <iostream> // For std::*
 //#include <vector>   // For std::vector.
 
-// Necessary for clad to work include
+#include <cmath> // for std::fabs
+
 #include "clad/Differentiator/Differentiator.h"
 
 // Include traces as embed "library" of functions
 #define CPP_EMBED_SMALLPT 1
 #include "cpp-smallpt.cpp"
+
+#define non_differentiable __attribute__((annotate("another_attribute"), annotate("non_differentiable")))
 
 using namespace smallpt;
 
@@ -40,9 +43,9 @@ using namespace smallpt;
 // target, current - represents the input/target and
 // output data/images respectively
 struct Dataset {
-  const std::uint32_t w = 1024u;
-  const std::uint32_t h = 768u;
-  const std::uint32_t nb_samples;
+  std::uint32_t w = 1024u;
+  std::uint32_t h = 768u;
+  std::uint32_t nb_samples;
   Vector3* target;
   Vector3* current;
   double learning_rate = 1e-2;
@@ -96,12 +99,19 @@ void performStep(double& theta_0, double& theta_1, double& theta_2, Dataset dt, 
   theta_2 -= dt.learning_rate * result[2] / (2 * dt.w*dt.h);
 }
 
+double d(Vector3 lhs, Vector3 rhs) {
+  return std::fabs(lhs.m_x - rhs.m_x) + std::fabs(lhs.m_y - rhs.m_y) + std::fabs(lhs.m_z - rhs.m_z);
+}
+
 // The cost function to minimize using gradient descent
 // theta_x are the parameters to learn; x, y are the inputs and outputs of f
-double cost(double theta_0, double theta_1, double theta_2, Dataset dt) {
+double cost(double theta[], Dataset dt) {
   const size_t fileNameMaxSize = 4096;
   char fileName[fileNameMaxSize];
-  snprintf(fileName, fileNameMaxSize, "image-%d.ppm", dt.step++);
+  // snprintf(fileName, fileNameMaxSize, "image-%d.ppm", dt.step++);
+
+  double sum = 0.;
+
   Render(
       scene, *(&scene + 1) - scene, // Geometry, Lights
       dt.Vx, dt.Vy, dt.Vz, // Params - Center of one sphere // must be Vector3()
@@ -110,13 +120,14 @@ double cost(double theta_0, double theta_1, double theta_2, Dataset dt) {
     );
   for (int i=0; i<=dt.h; i++) {
     for (int j=0; j<=dt.w; j++) {
-//      sum += 
+      int p = (dt.h - 1U - i) * dt.w + j;
+      sum += d(dt.current[p], dt.target[p]);
     }
   }
 
 //  double f_x = f(theta_0, theta_1, theta_2, x);
 //  return (f_x - y) * (f_x - y);
-  return 0;
+  return sum;
 }
 
 double f(double x, double y) {

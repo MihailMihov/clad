@@ -34,7 +34,7 @@ namespace smallpt {
     // Constructors and Destructors
     //---------------------------------------------------------------------
 
-    constexpr explicit Vector3(double xyz = 0.0) noexcept
+    constexpr Vector3(double xyz = 0.0) noexcept
         : Vector3(xyz, xyz, xyz) {}
     constexpr Vector3(double x, double y, double z) noexcept
         : m_x(x), m_y(y), m_z(z) {}

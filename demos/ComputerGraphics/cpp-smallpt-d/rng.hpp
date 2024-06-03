@@ -22,7 +22,7 @@ namespace smallpt {
     // Constructors and Destructors
     //---------------------------------------------------------------------
 
-    explicit RNG(std::uint32_t seed = 606418532u) noexcept
+    RNG(std::uint32_t seed = 606418532u) noexcept
         : m_generator(), m_distribution() {
       Seed(seed);
     }
