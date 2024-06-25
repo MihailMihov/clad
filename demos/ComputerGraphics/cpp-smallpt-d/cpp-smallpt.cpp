@@ -61,21 +61,6 @@
 // Declarations and Definitions
 //-----------------------------------------------------------------------------
 namespace smallpt {
-
-  /*constexpr*/ Sphere* scene[] = {
-      new Sphere(1e5,  Vector3(1e5 + 1, 40.8, 81.6),   Vector3(),   Vector3(0.75, 0.25, 0.25), Reflection_t::Diffuse),   // Left
-      new Sphere(1e5,  Vector3(-1e5 + 99, 40.8, 81.6), Vector3(),   Vector3(0.25, 0.25, 0.75), Reflection_t::Diffuse),   // Right
-      new Sphere(1e5,  Vector3(50, 40.8, 1e5),         Vector3(),   Vector3(0.75),             Reflection_t::Diffuse),   // Back
-      new Sphere(1e5,  Vector3(50, 40.8, -1e5 + 170),  Vector3(),   Vector3(),                 Reflection_t::Diffuse),   // Front
-      new Sphere(1e5,  Vector3(50, 1e5, 81.6),         Vector3(),   Vector3(0.75),             Reflection_t::Diffuse),   // Bottom
-      new Sphere(1e5,  Vector3(50, -1e5 + 81.6, 81.6), Vector3(),   Vector3(0.75),             Reflection_t::Diffuse),   // Top
-      new Sphere(16.5, Vector3(27, 16.5, 47),          Vector3(),   Vector3(0.999),            Reflection_t::Refractive),  // Glass
-//      new Sphere(16.5, Vector3(55, 30, 57),          Vector3(),   Vector3(0.999),            Reflection_t::Refractive),  // Glassr
-//      new Sphere(16.5, Vector3(80, 60, 67),          Vector3(),   Vector3(0.999),            Reflection_t::Refractive),  // Glass
-      new Sphere(16.5, Vector3(73, 16.5, 78),          Vector3(),   Vector3(0.999),            Reflection_t::Specular),// Mirror
-      new Sphere(600,  Vector3(50, 681.6 - .27, 81.6), Vector3(12), Vector3(),                 Reflection_t::Diffuse)    // Light
-  };
-
   [[nodiscard]]
   /*constexpr*/ size_t Intersect(Sphere* g_scene[], const size_t n_scene, const Ray& ray) noexcept {
     size_t hit = SIZE_MAX;
@@ -172,9 +157,11 @@ namespace smallpt {
     const Vector3 cy = Normalize(cx.Cross(gaze)) * fov;
 
     // Change unfixed geometry center
-    g_scene[6]->m_p = Vector3(Vx, Vy, Vz);
+    Vector3 newV = Vector3(Vx, Vy, Vz);
+    Sphere* geometryCenter = g_scene[6];
+    geometryCenter->m_p = newV;
 
-    #pragma omp parallel for schedule(static)
+    //#pragma omp parallel for schedule(static)
     for (int y = 0; y < static_cast<int>(h); ++y) { // pixel row
       for (std::size_t x = 0u; x < w; ++x) { // pixel column
         for (std::size_t sy = 0u, i = (h - 1u - y) * w + x; sy < 2u; ++sy) { // 2 subpixel row
@@ -186,8 +173,12 @@ namespace smallpt {
               const double u2 = 2.0 * rng.Uniform();
               const double dx = u1 < 1.0 ? sqrt(u1) - 1.0 : 1.0 - sqrt(2.0 - u1);
               const double dy = u2 < 1.0 ? sqrt(u2) - 1.0 : 1.0 - sqrt(2.0 - u2);
-              const Vector3 d = cx * (((sx + 0.5 + dx) * 0.5 + x) / w - 0.5) +
-                                cy * (((sy + 0.5 + dy) * 0.5 + y) / h - 0.5) +
+	      const double cx_mult = (((sx + 0.5 + dx) * 0.5 + x) / w - 0.5);
+	      const double cy_mult = (((sy + 0.5 + dy) * 0.5 + y) / h - 0.5);
+	      const Vector3 cx_1 = cx * cx_mult;
+	      const Vector3 cy_1 = cy * cy_mult;
+              const Vector3 d = cx_1 +
+                                cy_1 +
                                 gaze;
 
               L += Radiance(g_scene, n_scene, Ray(eye + d * 130.0, Normalize(d), EPSILON_SPHERE), rng) * (1.0 / nb_samples);
@@ -202,21 +193,3 @@ namespace smallpt {
     WritePPM(w, h, Ls, fileName);
   }
 } // namespace smallpt
-
-#ifndef CPP_EMBED_SMALLPT
-using namespace smallpt;
-int main(int argc, char* argv[]) {
-  const std::uint32_t nb_samples = (2 == argc) ? atoi(argv[1]) / 4 : 1;
-  const std::uint32_t w = 1024;
-  const std::uint32_t h = 768;
-
-  smallpt::Render(
-    scene, *(&scene + 1) - scene, // Geometry, Lights
-    27, 16.5, 47, // Params - Center of one sphere // must be Vector3()
-    w, h, nb_samples, 0, // Camera
-    new Vector3[w*h], "image.ppm" // Result
-  );
-
-  return 0;
-}
-#endif
