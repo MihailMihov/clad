@@ -1610,8 +1610,10 @@ Expr* getArraySizeExpr(const ArrayType* AT, ASTContext& context,
             baseOriginalE = OCE->getArg(0);
 
           baseDiff = Visit(baseOriginalE);
+
           Expr* baseDiffStore = GlobalStoreAndRef(baseDiff.getExpr());
           baseDiff.updateStmt(baseDiffStore);
+
           Expr* baseDerivative = baseDiff.getExpr_dx();
           if (!baseDerivative->getType()->isPointerType())
             baseDerivative =
@@ -1871,9 +1873,8 @@ Expr* getArraySizeExpr(const ArrayType* AT, ASTContext& context,
                .ActOnCallExpr(getCurrentScope(), Clone(CE->getCallee()), Loc,
                               CallArgs, Loc)
                .get();
-    return StmtDiff(call);
 
-    return {};
+    return StmtDiff(call);
   }
 
   Expr* ReverseModeVisitor::GetMultiArgCentralDiffCall(
@@ -3708,8 +3709,18 @@ Expr* getArraySizeExpr(const ArrayType* AT, ASTContext& context,
       const clang::MaterializeTemporaryExpr* MTE) {
     // `MaterializeTemporaryExpr` node will be created automatically if it is
     // required by `ActOn`/`Build` Sema functions.
-    StmtDiff MTEDiff = Visit(clad_compat::GetSubExpr(MTE), dfdx());
-    return MTEDiff;
+
+    if(dfdx() != nullptr) {
+	StmtDiff MTEDiff = Visit(clad_compat::GetSubExpr(MTE), dfdx());
+	return MTEDiff;
+    }
+
+    auto* MTEStore = GlobalStoreAndRef(Clone(clad_compat::GetSubExpr(MTE)), "_t", /*force=*/true);
+    auto* MTEStoreDRE = dyn_cast<DeclRefExpr>(MTEStore);
+    auto* MTEStoreVD = dyn_cast<VarDecl>(MTEStoreDRE->getDecl());
+    auto MTEStoreDerived = DifferentiateVarDecl(MTEStoreVD);
+    addToCurrentBlock(BuildDeclStmt(MTEStoreDerived.getDecl_dx()));
+    return {MTEStore, BuildDeclRef(MTEStoreDerived.getDecl_dx())};
   }
 
   StmtDiff ReverseModeVisitor::VisitSubstNonTypeTemplateParmExpr(
