@@ -124,6 +124,12 @@ namespace clad {
     }
 
     void CladPlugin::HandleTopLevelDeclForClad(DeclGroupRef DGR) {
+      for(auto& decl : DGR) {
+	  if(auto *ND = dyn_cast<NamespaceDecl>(decl)) {
+	      if(ND->getNameAsString() == "clad")
+		  /*ND->dump();*/;
+	  }
+      }
       if (!CheckBuiltins())
         return;
 

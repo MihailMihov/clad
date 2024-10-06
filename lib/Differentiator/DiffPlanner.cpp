@@ -175,7 +175,7 @@ namespace clad {
   }
 
   void DiffRequest::updateCall(FunctionDecl* FD, FunctionDecl* OverloadedFD,
-                               Sema& SemaRef) {
+                               Sema& SemaRef)  {
     CallExpr* call = this->CallContext;
 
     assert(call && "Must be set");
@@ -189,24 +189,29 @@ namespace clad {
 
     FunctionDecl* replacementFD = OverloadedFD ? OverloadedFD : FD;
 
-    auto codeArgIdx = -1;
-    auto derivedFnArgIdx = -1;
-    auto idx = 0;
-    for (auto* arg : call->arguments()) {
-      if (auto* default_arg_expr = dyn_cast<CXXDefaultArgExpr>(arg)) {
-        std::string argName = default_arg_expr->getParam()->getNameAsString();
-        if (argName == "derivedFn")
-          derivedFnArgIdx = idx;
-        else if (argName == "code")
-          codeArgIdx = idx;
+    VarDecl* derivedFnVD = nullptr;
+    VarDecl* codeVD = nullptr;
+    VarDecl* cudaKernelVD = nullptr;
+
+    for (auto* stmt : dyn_cast<CompoundStmt>(call->getCalleeDecl()->getBody())->body()) {
+      if (auto* DS = dyn_cast<DeclStmt>(stmt)) {
+        for(auto* decl : DS->decls()) {
+          if(auto* VD = dyn_cast<VarDecl>(decl)) {
+            auto var_name = VD->getNameAsString();
+            if(var_name == "_clad_derivedFn") {
+              derivedFnVD = VD;
+	    } else if(var_name == "_clad_code") {
+              codeVD = VD;
+	    } else if(var_name == "_clad_CUDA_kernel") {
+	      cudaKernelVD = VD;
+	    }
+          }
+        }
       }
-      ++idx;
     }
 
-    // Index of "CUDAkernel" parameter:
-    int numArgs = static_cast<int>(call->getNumArgs());
-    if (numArgs > 4) {
-      auto kernelArgIdx = numArgs - 1;
+    // Update the CUDA_kernel VarDecl if it was found.
+    if (cudaKernelVD) {
       auto* cudaKernelFlag =
           SemaRef
               .ActOnCXXBoolLiteral(noLoc,
@@ -214,8 +219,7 @@ namespace clad {
                                        ? tok::kw_true
                                        : tok::kw_false)
               .get();
-      call->setArg(kernelArgIdx, cudaKernelFlag);
-      numArgs--;
+      cudaKernelVD->setInit(cudaKernelFlag);
     }
 
     // Create ref to generated FD.
@@ -232,35 +236,34 @@ namespace clad {
     if (isa<CXXMethodDecl>(DRE->getDecl()))
       DRE->setValueKind(CLAD_COMPAT_ExprValueKind_R_or_PR_Value);
 
-    if (derivedFnArgIdx != -1) {
+    // Update the derivedFn VarDecl if it was found.
+    if (derivedFnVD) {
       // Add the "&" operator
-      auto newUnOp =
+      auto *newUnOp =
           SemaRef
               .BuildUnaryOp(nullptr, noLoc, UnaryOperatorKind::UO_AddrOf, DRE)
               .get();
-      call->setArg(derivedFnArgIdx, newUnOp);
+      derivedFnVD->setInit(newUnOp);
     }
 
-    // Update the code parameter if it was found.
-    if (codeArgIdx != -1) {
-      if (auto* Arg = dyn_cast<CXXDefaultArgExpr>(call->getArg(codeArgIdx))) {
-        clang::LangOptions LangOpts;
-        LangOpts.CPlusPlus = true;
-        clang::PrintingPolicy Policy(LangOpts);
-        Policy.Bool = true;
+    // Update the code VarDecl if it was found.
+    if (codeVD) {
+      clang::LangOptions LangOpts;
+      LangOpts.CPlusPlus = true;
+      clang::PrintingPolicy Policy(LangOpts);
+      Policy.Bool = true;
 
-        std::string s;
-        llvm::raw_string_ostream Out(s);
-        FD->print(Out, Policy);
-        Out.flush();
+      std::string s;
+      llvm::raw_string_ostream Out(s);
+      FD->print(Out, Policy);
+      Out.flush();
 
-        StringLiteral* SL = utils::CreateStringLiteral(C, Out.str());
-        Expr* newArg =
-            SemaRef
-                .ImpCastExprToType(SL, Arg->getType(), CK_ArrayToPointerDecay)
-                .get();
-        call->setArg(codeArgIdx, newArg);
-      }
+      StringLiteral* SL = utils::CreateStringLiteral(C, Out.str());
+      Expr* newArg =
+          SemaRef
+              .ImpCastExprToType(SL, codeVD->getType(), CK_ArrayToPointerDecay)
+              .get();
+      codeVD->setInit(newArg);
     }
   }
 

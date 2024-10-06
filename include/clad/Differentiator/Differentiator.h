@@ -448,31 +448,21 @@ CUDA_HOST_DEVICE T push(tape<T>& to, ArgsT... val) {
         derivedFn, code);
   }
 
-  template <bool HasCode = true, unsigned... BitMaskedOpts,
-            typename ArgSpec = const char*, typename F,
+  template <unsigned... BitMaskedOpts,
+	    typename... Args,
+            typename ParamSpec = const char*,
+	    typename F,
             typename DerivedFnType = ExtractDerivedFnTraitsForwMode_t<F>,
             typename = typename std::enable_if<
                 !clad::HasOption(GetBitmaskedOpts(BitMaskedOpts...),
                                  opts::vector_mode) &&
-                !std::is_class<remove_reference_and_pointer_t<F>>::value &&
-                !HasCode>::type>
-  CladFunction<DerivedFnType, ExtractFunctorTraits_t<F>, HasCode> __attribute__((
-      annotate("D"))) constexpr differentiate(F fn, ArgSpec args = "",
-                                              DerivedFnType derivedFn =
-                                                  static_cast<DerivedFnType>(
-                                                      [](double a, double b) {
-                                                        return 42.;
-                                                      })) {
-    return CladFunction<DerivedFnType, ExtractFunctorTraits_t<F>, HasCode>(
-        derivedFn);
-  }
-
-  template <unsigned... BitMaskedOpts, typename ArgSpec = const char*,
-            typename F, typename... Args>
-  return_type_t<F> constexpr differentiate_and_execute(F fn, ArgSpec args = "",
-                                                       Args&&... args_) {
-    return differentiate<false, BitMaskedOpts...>(fn, args).execute(
-        std::forward<Args>(args_)...);
+                !std::is_class<remove_reference_and_pointer_t<F>>::value
+	    >::type>
+  return_type_t<F> __attribute__((annotate("D")))
+  constexpr differentiate_and_execute(F fn, ParamSpec params = "", Args... args) {
+    DerivedFnType _clad_derivedFn;
+    return CladFunction<DerivedFnType, ExtractFunctorTraits_t<F>, false>(_clad_derivedFn)
+	.execute(std::forward<Args>(args)...);
   }
 
   /// Specialization for differentiating functors.
