@@ -277,6 +277,14 @@ double fn8(Tangent t, dcomplex c) {
 // CHECK-NEXT:     }
 // CHECK-NEXT: }
 
+// CHECK: constexpr void real_pullback(double _d_y, std{{(::__1)?}}::complex<double> *_d_this){{.*}} {
+// CHECK-NEXT:     {{(__real)?}} (*_d_this).{{.*}} += _d_y;
+// CHECK-NEXT: }
+
+// CHECK: constexpr void imag_pullback(double _d_y, std{{(::__1)?}}::complex<double> *_d_this){{.*}} {
+// CHECK-NEXT:     {{(__imag)?}} (*_d_this).{{.*}} += _d_y;
+// CHECK-NEXT: }
+
 double fn9(Tangent t, dcomplex c) {
   double res = 0;
   for (int i=0; i<5; ++i) {
@@ -504,14 +512,6 @@ int main() {
 // CHECK-NEXT:         {{(__real)?}} (*_d_this).[[_M_value]] = 0.;
 // CHECK-NEXT:         *[[_d___val]] += _r_d0;
 // CHECK-NEXT:     }
-// CHECK-NEXT: }
-
-// CHECK: constexpr void real_pullback(double _d_y, std{{(::__1)?}}::complex<double> *_d_this){{.*}} {
-// CHECK-NEXT:     {{(__real)?}} (*_d_this).{{.*}} += _d_y;
-// CHECK-NEXT: }
-
-// CHECK: constexpr void imag_pullback(double _d_y, std{{(::__1)?}}::complex<double> *_d_this){{.*}} {
-// CHECK-NEXT:     {{(__imag)?}} (*_d_this).{{.*}} += _d_y;
 // CHECK-NEXT: }
 
 // CHECK: void updateTo_pullback(double d, Tangent *_d_this, double *_d_d) {
